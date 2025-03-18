@@ -35,6 +35,7 @@
   $inspect(passwords);
 
   function addPassword(password: Password) {
+    console.log(passwords);
     passwords = [...passwords, password];
     showAddModal = false;
     saveStore();
@@ -72,13 +73,11 @@
   }
 
   async function saveStore() {
-    console.log("ee");
-    await invoke('save_store', { store: passwords });
+    await invoke('save_store', { store: passwords, password: "secret" });
   }
 
   async function getStore() {
-    console.log("ee2");
-    passwords = await invoke('get_store');
+    passwords = await invoke('get_store', { password: "secret" });
   }
 
   onMount(() => {
