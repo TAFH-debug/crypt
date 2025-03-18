@@ -5,6 +5,7 @@
   import Toast from './components/toast.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
+  import MasterPasswordModal from './components/master-password-modal.svelte';
   
   interface Password {
     id: number;
@@ -14,6 +15,7 @@
     notes: string;
   }
 
+  let master_password: string | null = $state(null);
   let filteredPasswords: Password[] = $state([]);
   let passwords: Password[] = $state([]);
   let showAddModal = $state(false);
@@ -32,13 +34,21 @@
     );
   })
 
-  $inspect(passwords);
+  $effect(() => {
+    if (master_password) {
+      getStore();
+    }
+  })
 
   function addPassword(password: Password) {
     console.log(passwords);
     passwords = [...passwords, password];
     showAddModal = false;
     saveStore();
+  }
+
+  function setMasterPassword(password: string) {
+    master_password = password;
   }
 
   function deletePassword(id: number) {
@@ -73,16 +83,12 @@
   }
 
   async function saveStore() {
-    await invoke('save_store', { store: passwords, password: "secret" });
+    await invoke('save_store', { store: passwords, password: master_password });
   }
 
   async function getStore() {
-    passwords = await invoke('get_store', { password: "secret" });
+    passwords = await invoke('get_store', { password: master_password });
   }
-
-  onMount(() => {
-    getStore();
-  });
 </script>
 
 <div class={darkMode ? 'dark' : ''}>
@@ -143,8 +149,10 @@
       />
     {/if}
 
-    {#if toast.show}
-      <Toast message={toast.message} />
+    {#if !master_password}
+    <MasterPasswordModal 
+      set={setMasterPassword}
+    />
     {/if}
   </div>
 </div>

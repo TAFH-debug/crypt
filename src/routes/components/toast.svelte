@@ -1,7 +1,7 @@
 <script>
     import { fly } from 'svelte/transition';
     
-    let { message } = $props();
+    let { message, children } = $props();
     
   </script>
   
@@ -10,4 +10,5 @@
     transition:fly={{ y: 20, duration: 300 }}
   >
     {message}
+    {@render children?.()}
   </div>
