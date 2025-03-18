@@ -23,6 +23,7 @@
   let searchQuery = $state('');
   let currentPassword: Password | null = $state(null);
   let darkMode = $state(false);
+  let error = $state("");
 
   let toast = $state({ show: false, message: '' });
   
@@ -87,7 +88,13 @@
   }
 
   async function getStore() {
-    passwords = await invoke('get_store', { password: master_password });
+    const res: any = await invoke('get_store', { password: master_password });
+    if (typeof res === 'string') {
+      master_password = null;
+      error = 'Invalid master password!';
+      return;
+    }
+    passwords = res;
   }
 </script>
 
@@ -152,6 +159,7 @@
     {#if !master_password}
     <MasterPasswordModal 
       set={setMasterPassword}
+      error={error}
     />
     {/if}
   </div>

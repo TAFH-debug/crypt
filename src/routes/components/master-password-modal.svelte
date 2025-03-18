@@ -2,7 +2,7 @@
     import { fade, scale } from 'svelte/transition';
     let props = $props();
     let master_password = $state("");
-    let error = $state("");
+    let error = $state(props.error);
 
     function saveMasterPassword(e: any) {
       e.preventDefault();
