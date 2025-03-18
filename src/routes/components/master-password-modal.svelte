@@ -4,6 +4,10 @@
     let master_password = $state("");
     let error = $state(props.error);
 
+    $effect(() => {
+      error = props.error;
+    });
+
     function saveMasterPassword(e: any) {
       e.preventDefault();
       if (master_password.length < 8) {
