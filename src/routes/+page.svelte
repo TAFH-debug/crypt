@@ -4,6 +4,9 @@
   import ViewPasswordModal from './components/view-password-modal.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import MasterPasswordModal from './components/master-password-modal.svelte';
+  import SettingsButton from './components/settings-button.svelte';
+  import SettingsModal from './components/settings-modal.svelte';
+  import Input from './components/input.svelte';
 
   interface Password {
     id: number;
@@ -19,6 +22,7 @@
   let showAddModal = $state(false);
   let showViewModal = $state(false);
   let showMasterPasswordModal = $state(true);
+  let showSettingsModal = $state(false);
   let searchQuery = $state('');
   let currentPassword: Password | null = $state(null);
   let darkMode = $state(false);
@@ -96,7 +100,7 @@
         <h2 class="text-4xl font-bold mb-4 text-gray-800 dark:text-white">Crypt</h2>
         <div class="flex justify-center items-center space-x-4">
           <div class="relative w-full max-w-md">
-            <input 
+            <Input 
               type="text" 
               bind:value={searchQuery}
               placeholder="Search your passwords..." 
@@ -117,6 +121,7 @@
             </svg>
             Add Password
           </button>
+          <SettingsButton class="w-7 h-7" onclick={() => showSettingsModal = true}/>
         </div>
       </div>
     </section>
@@ -154,6 +159,18 @@
         showMasterPasswordModal = false;
         getStore();
       }}
+    />
+    {/if}
+
+    {#if showSettingsModal}
+    <SettingsModal close={() => {
+      showSettingsModal = false;
+    }}
+    masterPassword={masterPassword}
+    setMasterPassword={(val: string) => {
+      masterPassword = val;
+      saveStore();
+    }}
     />
     {/if}
   </div>

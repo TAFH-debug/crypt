@@ -1,4 +1,5 @@
 <script>
+  import Button from './button.svelte';
   import Modal from './modal.svelte';
   let { close, password, copy, deleteA } = $props();
 
@@ -80,12 +81,11 @@
   </div>
   
   <div class="mt-6 flex justify-end space-x-3">
-    <button 
+    <Button 
       onclick={() => close()}
-      class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
     >
       Close
-    </button>
+    </Button>
     <button 
       onclick={() => deleteA(password.id)}
       class="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center"

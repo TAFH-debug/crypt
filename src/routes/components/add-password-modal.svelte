@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Button from './button.svelte';
+  import Input from './input.svelte';
   import Modal from './modal.svelte';
 
   let { close, add } = $props();
@@ -57,7 +59,7 @@
     <div class="space-y-4">
       <div>
         <label for="site" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website or App</label>
-        <input 
+        <Input 
           type="text" 
           id="site"
           bind:value={newSite}
@@ -69,26 +71,24 @@
       
       <div>
         <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username or Email</label>
-        <input 
+        <Input 
           type="text" 
           id="username"
           bind:value={newUsername}
           required
           placeholder="johndoe@example.com" 
-          class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
         />
       </div>
       
       <div>
         <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
         <div class="relative">
-          <input 
+          <Input 
             type={showPassword ? "text" : "password"}
             id="password"
             bind:value={newPassword}
             required
             placeholder="Enter password" 
-            class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white pr-24"
           />
           <div class="absolute right-2 top-2 flex">
             <button 
@@ -132,13 +132,11 @@
     </div>
     
     <div class="mt-6 flex justify-end space-x-3">
-      <button 
-        type="button"
+      <Button 
         onclick={close}
-        class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-      >
+        >
         Cancel
-      </button>
+      </Button>
       <button 
         type="submit"
         class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 transition-opacity"

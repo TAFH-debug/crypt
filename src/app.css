@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.no-scrollbar::-webkit-scrollbar, body::-webkit-scrollbar, html::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar, body, html {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+

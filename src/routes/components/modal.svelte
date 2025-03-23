@@ -1,14 +1,14 @@
 <script>
   import { fade, scale } from "svelte/transition";
-  const { title, children, close } = $props();
+  const { title, children, close, ...props } = $props();
 </script>
 
 <div 
-  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+  class={`fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 ${props.class}`}
   transition:fade={{ duration: 200 }}
 >
   <div 
-    class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+    class="bg-white dark:bg-gray-800 rounded-xl opacity-100 shadow-xl w-full max-w-md overflow-hidden"
     transition:scale={{ start: 0.95, duration: 200 }}
   >
     <div class="p-6">
@@ -25,7 +25,7 @@
         </button>
       </div>
 
-      {@render children()}
+      {@render children?.()}
     </div>
   </div>
 </div>
