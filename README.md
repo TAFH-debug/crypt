@@ -1,9 +1,8 @@
-<div flex="true">
+<div>
     <img src="./src-tauri/icons/64x64.png" width="100px" align="left">
-    <h1>Crypt</h1>
 </div>
 
-### Crypt
+<font size="6">Crypt</font>
 
 **Crypt** is an open source password manager for your passwords built on Tauri + Svelte.
 
