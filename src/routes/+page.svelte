@@ -91,6 +91,13 @@
     }
     passwords = res;
   }
+
+  async function deleteDatabase() {
+    await invoke('delete_database');
+    showMasterPasswordModal = true;
+    masterPassword = "";
+    passwords = [];
+  }
 </script>
 
 <div class={darkMode ? 'dark' : ''}>
@@ -171,6 +178,7 @@
       masterPassword = val;
       saveStore();
     }}
+    deleteDatabase={deleteDatabase}
     />
     {/if}
   </div>

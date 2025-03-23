@@ -65,6 +65,7 @@
           bind:value={newSite}
           required
           placeholder="example.com" 
+          autocomplete="off"
           class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
         />
       </div>
@@ -76,6 +77,7 @@
           id="username"
           bind:value={newUsername}
           required
+          autocomplete="off"
           placeholder="johndoe@example.com" 
         />
       </div>
@@ -88,6 +90,7 @@
             id="password"
             bind:value={newPassword}
             required
+            autocomplete="off"
             placeholder="Enter password" 
           />
           <div class="absolute right-2 top-2 flex">
@@ -126,6 +129,7 @@
           bind:value={newNotes}
           placeholder="Add any additional information" 
           rows="3"
+          autocomplete="off"
           class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white resize-none"
         ></textarea>
       </div>
@@ -137,12 +141,12 @@
         >
         Cancel
       </Button>
-      <button 
+      <Button 
         type="submit"
-        class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:opacity-90 transition-opacity"
+        class="bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90 transition-opacity"
       >
         Save Password
-      </button>
+      </Button>
     </div>
   </form>
 </Modal>

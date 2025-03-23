@@ -43,6 +43,15 @@ fn decrypt(ct: Vec<u8>, hs: &[u8; 32]) -> Result<Vec<u8>, Error> {
 }
 
 #[tauri::command]
+fn delete_database() {
+    let path = dirs_next::home_dir().unwrap().join("AppData\\Local\\com.crypt.app\\passwords.bin");
+    match remove_file(path) {
+        Ok(_) => (),
+        Err(_) => panic!("Error while deleting database")
+    }
+}
+
+#[tauri::command]
 fn save_store(store: serde_json::Value, password: &str) {
     let path: PathBuf = dirs_next::home_dir().unwrap().join("AppData\\Local\\com.crypt.app\\passwords.bin");
     let mut file = File::create(path.as_path()).unwrap();
@@ -81,7 +90,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_store, save_store])
+        .invoke_handler(tauri::generate_handler![get_store, save_store, delete_database])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

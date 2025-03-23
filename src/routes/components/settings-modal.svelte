@@ -44,8 +44,11 @@
             <div class="h-[1px] bg-gray-400 flex-1 my-2"></div>
         </div>
         <label for="confirm" class="my-3">Enter "I confirm" in the following input:</label>
-        <Input id="confirm" class="my-3" placeholder="I confirm" bind:value={confirmValue} />
-        <Button onclick={deleteDatabase} class={deleteDisabled ? "bg-red-400 hover:bg-red-400 hover:dark:bg-red-400" : "bg-red-500 hover:bg-red-400 hover:dark:bg-red-400"} disabled={deleteDisabled}>
+        <Input id="confirm" class="my-3" placeholder="I confirm" bind:value={confirmValue} autocomplete="off"/>
+        <Button onclick={() => {
+            deleteDatabase();
+            close();
+        }} class={deleteDisabled ? "bg-red-400 hover:bg-red-400 hover:dark:bg-red-400" : "bg-red-500 hover:bg-red-400 hover:dark:bg-red-400"} disabled={deleteDisabled}>
             Delete database
         </Button>
     </section>
