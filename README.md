@@ -1,4 +1,4 @@
-<div>
+<div flex="true">
     <img src="./src-tauri/icons/64x64.png" width="100px" align="left">
     <h1>Crypt</h1>
 </div>
