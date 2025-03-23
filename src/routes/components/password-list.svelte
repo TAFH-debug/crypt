@@ -58,7 +58,7 @@
                   <tr 
                     animate:flip={{ duration: 300 }}
                     in:fly={{ y: 20, duration: 300, delay: i * 50 }}
-                    class="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750"
+                    class="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-400 dark:hover:bg-gray-750"
                   >
                     <td class="px-6 py-4">
                       <div class="flex items-center">

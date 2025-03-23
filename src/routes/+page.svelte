@@ -2,11 +2,9 @@
   import PasswordList from './components/password-list.svelte';
   import AddPasswordModal from './components/add-password-modal.svelte';
   import ViewPasswordModal from './components/view-password-modal.svelte';
-  import Toast from './components/toast.svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { onMount } from 'svelte';
   import MasterPasswordModal from './components/master-password-modal.svelte';
-  
+
   interface Password {
     id: number;
     site: string;
@@ -15,11 +13,12 @@
     notes: string;
   }
 
-  let master_password: string | null = $state(null);
+  let masterPassword = $state("");
   let filteredPasswords: Password[] = $state([]);
   let passwords: Password[] = $state([]);
   let showAddModal = $state(false);
   let showViewModal = $state(false);
+  let showMasterPasswordModal = $state(true);
   let searchQuery = $state('');
   let currentPassword: Password | null = $state(null);
   let darkMode = $state(false);
@@ -35,21 +34,11 @@
     );
   })
 
-  $effect(() => {
-    if (master_password) {
-      getStore();
-    }
-  })
-
   function addPassword(password: Password) {
     console.log(passwords);
     passwords = [...passwords, password];
     showAddModal = false;
     saveStore();
-  }
-
-  function setMasterPassword(password: string) {
-    master_password = password;
   }
 
   function deletePassword(id: number) {
@@ -84,14 +73,16 @@
   }
 
   async function saveStore() {
-    await invoke('save_store', { store: passwords, password: master_password });
+    await invoke('save_store', { store: passwords, password: masterPassword });
   }
 
   async function getStore() {
-    const res: any = await invoke('get_store', { password: master_password });
+    const res: any = await invoke('get_store', { password: masterPassword });
+    error = '';
     if (typeof res === 'string') {
-      master_password = null;
+      masterPassword = "";
       error = 'Invalid master password!';
+      showMasterPasswordModal = true;
       return;
     }
     passwords = res;
@@ -100,7 +91,6 @@
 
 <div class={darkMode ? 'dark' : ''}>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-    <!-- Search Section -->
     <section class="py-12 bg-gradient-to-b from-white to-gray-100 dark:from-gray-800 dark:to-gray-900">
       <div class="container mx-auto px-4 text-center">
         <h2 class="text-4xl font-bold mb-4 text-gray-800 dark:text-white">Crypt</h2>
@@ -151,15 +141,19 @@
       <ViewPasswordModal 
         password={currentPassword}
         close={() => { showViewModal = false; currentPassword = null; }}
-        delete={deletePassword}
+        deleteA={deletePassword}
         copy={copyToClipboard}
       />
     {/if}
 
-    {#if !master_password}
+    {#if showMasterPasswordModal}
     <MasterPasswordModal 
-      set={setMasterPassword}
-      error={error}
+      bind:masterPassword={masterPassword}
+      bind:error={error}
+      close={() => {
+        showMasterPasswordModal = false;
+        getStore();
+      }}
     />
     {/if}
   </div>

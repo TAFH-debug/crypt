@@ -12,8 +12,8 @@
   "app": {
     "windows": [
       {
-        "title": "crypt",
-        "width": 800,
+        "title": "Crypt",
+        "width": 1100,
         "height": 600
       }
     ],
