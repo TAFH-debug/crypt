@@ -1,152 +1,93 @@
 <script lang="ts">
+  import { generatePassword, type Entry } from '$lib/password';
   import Button from './button.svelte';
+  import Icon from './icon.svelte';
   import Input from './input.svelte';
   import Modal from './modal.svelte';
+  import StrengthMeter from './strength-meter.svelte';
 
-  let { close, add } = $props();
-  
-  let newSite = $state('');
-  let newUsername = $state('');
-  let newPassword = $state('');
-  let newNotes = $state('');
+  let { onsave, onclose }: { onsave: (entry: Entry) => Promise<void>; onclose: () => void } = $props();
+
+  let site = $state('');
+  let username = $state('');
+  let password = $state('');
+  let notes = $state('');
   let showPassword = $state(false);
+  let saving = $state(false);
 
-  function generatePassword(length = 16) {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-    let password = "";
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * charset.length);
-      password += charset[randomIndex];
-    }
-    return password;
+  const ready = $derived(site.trim() !== '' && username.trim() !== '' && password !== '');
+
+  function generate() {
+    password = generatePassword();
+    showPassword = true; // show the result so it can be checked
   }
 
-
-  function addPassword(e: any) {
+  async function submit(e: SubmitEvent) {
     e.preventDefault();
+    if (!ready) return;
 
-    if (!newSite || !newUsername || !newPassword) return;
-    
-    const newEntry = {
+    saving = true;
+    await onsave({
       id: Date.now(),
-      site: newSite,
-      username: newUsername,
-      password: newPassword,
-      notes: newNotes,
+      site: site.trim(),
+      username: username.trim(),
+      password,
+      notes: notes.trim(),
       date: new Date().toISOString()
-    };
-    
-    add(newEntry);
-    resetForm();
-  }
-
-  function resetForm() {
-    newSite = '';
-    newUsername = '';
-    newPassword = '';
-    newNotes = '';
-    showPassword = false;
-  }
-
-  function closeAction() {
-    resetForm();
-    close();
+    });
+    saving = false;
   }
 </script>
 
-<Modal title="Add New Password" close={closeAction}>
-  <form onsubmit={addPassword}>
-    <div class="space-y-4">
-      <div>
-        <label for="site" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website or App</label>
-        <Input 
-          type="text" 
-          id="site"
-          bind:value={newSite}
-          required
-          placeholder="example.com" 
+<Modal title="New password" {onclose}>
+  <form onsubmit={submit} class="space-y-4">
+    <label class="block space-y-1.5">
+      <span class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Website or app</span>
+      <Input type="text" placeholder="github.com" autocomplete="off" autofocus required bind:value={site} />
+    </label>
+
+    <label class="block space-y-1.5">
+      <span class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Username or email</span>
+      <Input type="text" placeholder="you@example.com" autocomplete="off" required bind:value={username} />
+    </label>
+
+    <div class="space-y-1.5">
+      <span class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Password</span>
+      <div class="relative">
+        <Input
+          type={showPassword ? 'text' : 'password'}
           autocomplete="off"
-          class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
-        />
-      </div>
-      
-      <div>
-        <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username or Email</label>
-        <Input 
-          type="text" 
-          id="username"
-          bind:value={newUsername}
           required
-          autocomplete="off"
-          placeholder="johndoe@example.com" 
+          bind:value={password}
+          class="pr-36 font-mono"
         />
-      </div>
-      
-      <div>
-        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-        <div class="relative">
-          <Input 
-            type={showPassword ? "text" : "password"}
-            id="password"
-            bind:value={newPassword}
-            required
-            autocomplete="off"
-            placeholder="Enter password" 
-          />
-          <div class="absolute right-2 top-2 flex">
-            <button 
-              type="button"
-              onclick={() => showPassword = !showPassword}
-              class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {#if showPassword}
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              {/if}
-            </button>
-            <button 
-              type="button"
-              onclick={() => { newPassword = generatePassword(); }}
-              class="ml-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
-            >
-              Generate
-            </button>
-          </div>
+        <div class="absolute inset-y-0 right-1.5 flex items-center gap-1">
+          <Button variant="ghost" class="p-1.5" aria-label={showPassword ? 'Hide password' : 'Show password'} onclick={() => (showPassword = !showPassword)}>
+            <Icon name={showPassword ? 'eye-off' : 'eye'} />
+          </Button>
+          <Button variant="secondary" class="gap-1 px-2.5 py-1.5 text-xs text-accent-1" onclick={generate}>
+            <Icon name="sparkles" class="h-3.5 w-3.5" />
+            Generate
+          </Button>
         </div>
       </div>
-      
-      <div>
-        <label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes (Optional)</label>
-        <textarea 
-          id="notes"
-          bind:value={newNotes}
-          placeholder="Add any additional information" 
-          rows="3"
-          autocomplete="off"
-          class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-800 dark:text-white resize-none"
-        ></textarea>
-      </div>
+      <StrengthMeter {password} />
     </div>
-    
-    <div class="mt-6 flex justify-end space-x-3">
-      <Button 
-        onclick={close}
-        >
-        Cancel
-      </Button>
-      <Button 
-        type="submit"
-        class="bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90 transition-opacity"
-      >
-        Save Password
-      </Button>
+
+    <label class="block space-y-1.5">
+      <span class="text-xs font-semibold tracking-wide text-zinc-500 uppercase">Notes</span>
+      <textarea
+        rows="3"
+        autocomplete="off"
+        placeholder="Optional"
+        bind:value={notes}
+        class="w-full resize-none rounded-xl bg-white px-3.5 py-2.5 text-sm ring-1 ring-zinc-200 transition outline-none placeholder:text-zinc-400 focus:ring-2 focus:ring-accent-1/60 dark:bg-zinc-900 dark:ring-zinc-700"
+      ></textarea>
+    </label>
+
+    <div class="flex justify-end gap-2 pt-2">
+      <Button variant="ghost" onclick={onclose}>Cancel</Button>
+      <Button type="submit" variant="primary" disabled={!ready || saving}>Save</Button>
     </div>
   </form>
 </Modal>

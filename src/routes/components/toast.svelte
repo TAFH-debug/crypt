@@ -1,14 +1,13 @@
-<script>
-    import { fly } from 'svelte/transition';
-    
-    let { message, children } = $props();
-    
-  </script>
-  
-  <div 
-    class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-    transition:fly={{ y: 20, duration: 300 }}
-  >
-    {message}
-    {@render children?.()}
-  </div>
+<script lang="ts">
+  import { fade } from 'svelte/transition';
+
+  let { message }: { message: string } = $props();
+</script>
+
+<div
+  role="status"
+  transition:fade={{ duration: 150 }}
+  class="pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+>
+  {message}
+</div>

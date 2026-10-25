@@ -1,99 +1,104 @@
-<script>
+<script lang="ts">
+  import { hueFor, REVEAL_MS, strength, type Entry } from '$lib/password';
   import Button from './button.svelte';
+  import CopyButton from './copy-button.svelte';
+  import Icon from './icon.svelte';
   import Modal from './modal.svelte';
-  let { close, password, copy, deleteA } = $props();
+
+  let {
+    entry,
+    oncopy,
+    ondelete,
+    onclose
+  }: {
+    entry: Entry;
+    oncopy: (text: string) => Promise<boolean>;
+    ondelete: (id: number) => Promise<void>;
+    onclose: () => void;
+  } = $props();
 
   let showPassword = $state(false);
-  
-  function togglePasswordVisibility() {
-    showPassword = !showPassword;
-  }
+  let confirming = $state(false);
+
+  const hue = $derived(hueFor(entry.site));
+  const health = $derived(strength(entry.password));
+
+  // Revealed passwords hide themselves again after a short time.
+  $effect(() => {
+    if (!showPassword) return;
+    const timer = setTimeout(() => (showPassword = false), REVEAL_MS);
+    return () => clearTimeout(timer);
+  });
 </script>
-  
-<Modal title="Password Details" close={close}>
-  <div class="space-y-4">
-    <div>
-      <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Website or App</h4>
-      <p class="text-gray-800 dark:text-white text-lg">{password.site}</p>
+
+{#snippet row(label: string, value: string, copyLabel: string)}
+  <div class="flex items-center justify-between gap-3 py-3.5">
+    <div class="min-w-0">
+      <p class="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">{label}</p>
+      <p class="truncate text-sm font-medium">{value}</p>
     </div>
-    
-    <div>
-      <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Username or Email</h4>
-      <div class="flex items-center">
-        <p class="text-gray-800 dark:text-white text-lg">{password.username}</p>
-        <button 
-          onclick={() => copy(password.username)}
-          class="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-          aria-label="Copy username"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    
-    <div>
-      <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Password</h4>
-      <div class="flex items-center">
-        <p class="text-gray-800 dark:text-white text-lg break-words max-w-full">{showPassword ? password.password : '••••••••••••'}</p>
-        <button 
-          onclick={togglePasswordVisibility}
-          class="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-          aria-label={showPassword ? "Hide password" : "Show password"}
-        >
-          {#if showPassword}
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-            </svg>
-          {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          {/if}
-        </button>
-        <button 
-          onclick={() => copy(password.password)}
-          class="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-          aria-label="Copy password"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    
-    {#if password.notes}
-      <div>
-        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</h4>
-        <p class="text-gray-800 dark:text-white">{password.notes}</p>
-      </div>
-    {/if}
-    
-    <div>
-      <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Date Added</h4>
-      <p class="text-gray-800 dark:text-white">
-        {new Date(password.date).toLocaleDateString()}
-      </p>
+    <CopyButton text={value} label={copyLabel} {oncopy} />
+  </div>
+{/snippet}
+
+<Modal title="" {onclose}>
+  <div class="mb-5 flex items-center gap-3">
+    <span
+      class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold text-white uppercase"
+      style={`background: linear-gradient(135deg, hsl(${hue} 85% 62%), hsl(${(hue + 45) % 360} 85% 55%))`}
+    >
+      {entry.site.charAt(0)}
+    </span>
+    <div class="min-w-0">
+      <p class="truncate text-lg font-bold">{entry.site}</p>
+      {#if health.score >= 0}
+        <p class="text-xs font-medium {health.score >= 3 ? 'text-emerald-500' : health.score === 2 ? 'text-amber-500' : 'text-rose-500'}">
+          {health.label} password
+        </p>
+      {/if}
     </div>
   </div>
-  
-  <div class="mt-6 flex justify-end space-x-3">
-    <Button 
-      onclick={() => close()}
-    >
-      Close
-    </Button>
-    <button 
-      onclick={() => deleteA(password.id)}
-      class="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-      </svg>
-      Delete
-    </button>
+
+  <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
+    {@render row('Username', entry.username, 'Copy username')}
+
+    <div class="flex items-center justify-between gap-3 py-3.5">
+      <div class="min-w-0">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">Password</p>
+        <p class="truncate font-mono text-sm font-medium">{showPassword ? entry.password : '••••••••••••'}</p>
+      </div>
+      <div class="flex shrink-0 items-center">
+        <Button variant="ghost" class="p-2" aria-label={showPassword ? 'Hide password' : 'Show password'} onclick={() => (showPassword = !showPassword)}>
+          <Icon name={showPassword ? 'eye-off' : 'eye'} />
+        </Button>
+        <CopyButton text={entry.password} label="Copy password" {oncopy} />
+      </div>
+    </div>
+
+    {#if entry.notes}
+      <div class="py-3.5">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">Notes</p>
+        <p class="text-sm whitespace-pre-wrap">{entry.notes}</p>
+      </div>
+    {/if}
+
+    {#if entry.date}
+      <div class="py-3.5">
+        <p class="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">Added</p>
+        <p class="text-sm">{new Date(entry.date).toLocaleDateString()}</p>
+      </div>
+    {/if}
+  </div>
+
+  <div class="mt-6 flex items-center justify-between">
+    {#if confirming}
+      <div class="flex gap-2">
+        <Button variant="danger" onclick={() => ondelete(entry.id)}>Confirm delete</Button>
+        <Button variant="ghost" onclick={() => (confirming = false)}>Cancel</Button>
+      </div>
+    {:else}
+      <Button variant="ghost" class="text-rose-500 hover:text-rose-600" onclick={() => (confirming = true)}>Delete</Button>
+    {/if}
+    <Button variant="secondary" onclick={onclose}>Done</Button>
   </div>
 </Modal>

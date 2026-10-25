@@ -1,11 +1,49 @@
 @import "tailwindcss";
+@import "@fontsource-variable/manrope";
 
-.no-scrollbar::-webkit-scrollbar, body::-webkit-scrollbar, html::-webkit-scrollbar {
-    display: none;
+@theme {
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-accent-1: oklch(0.68 0.2 295);
+  --color-accent-2: oklch(0.7 0.19 340);
+  --color-accent-3: oklch(0.8 0.14 75);
+  --animate-pop: pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --animate-drift: drift 14s ease-in-out infinite alternate;
 }
 
-.no-scrollbar, body, html {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.94) translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(40px, -30px) scale(1.12); }
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    font-feature-settings: "ss01";
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent-1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

@@ -1,31 +1,37 @@
-<script>
-  import { fade, scale } from "svelte/transition";
-  const { title, children, close, ...props } = $props();
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  import { onMount } from 'svelte';
+  import Button from './button.svelte';
+  import Icon from './icon.svelte';
+
+  let { title, onclose, children }: { title: string; onclose: () => void; children: Snippet } = $props();
+
+  let dialog: HTMLDialogElement;
+
+  // Native dialog gives focus trap, Escape to close and inert background.
+  onMount(() => dialog.showModal());
+
+  function closeOnBackdrop(e: MouseEvent) {
+    if (e.target === dialog) dialog.close();
+  }
 </script>
 
-<div 
-  class={`fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 ${props.class}`}
-  transition:fade={{ duration: 200 }}
+<dialog
+  bind:this={dialog}
+  {onclose}
+  onclick={closeOnBackdrop}
+  class="m-auto w-full max-w-md animate-pop rounded-3xl bg-white text-zinc-900 shadow-2xl ring-1 ring-black/5 backdrop:bg-zinc-900/40 backdrop:backdrop-blur-sm dark:bg-zinc-900 dark:text-zinc-100 dark:ring-white/10"
 >
-  <div 
-    class="bg-white dark:bg-gray-800 rounded-xl opacity-100 shadow-xl w-full max-w-md overflow-hidden"
-    transition:scale={{ start: 0.95, duration: 200 }}
-  >
-    <div class="p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold text-gray-800 dark:text-white">{title}</h3>
-        <button 
-          onclick={close}
-          class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          aria-label="Close"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {@render children?.()}
+  <div class="relative overflow-hidden">
+    <div class="pointer-events-none absolute -top-24 -right-16 h-48 w-48 rounded-full bg-accent-2/20 blur-3xl"></div>
+    <div class="relative flex items-center justify-between px-6 pt-5">
+      <h2 class="text-lg font-bold tracking-tight">{title}</h2>
+      <Button variant="ghost" class="p-1.5" aria-label="Close" onclick={() => dialog.close()}>
+        <Icon name="close" />
+      </Button>
+    </div>
+    <div class="relative px-6 pt-4 pb-6">
+      {@render children()}
     </div>
   </div>
-</div>
+</dialog>
