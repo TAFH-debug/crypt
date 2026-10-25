@@ -7,6 +7,11 @@ export interface Entry {
   date?: string;
 }
 
+export interface VaultStatus {
+  exists: boolean;
+  recoveryQuestion: string | null;
+}
+
 export const MIN_PASSWORD_LENGTH = 8;
 
 export const REVEAL_MS = 10_000;

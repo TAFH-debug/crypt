@@ -1,6 +1,14 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { AUTO_LOCK_MS, CLIPBOARD_CLEAR_MS, filterEntries, strength, type Entry } from '$lib/password';
+  import {
+    AUTO_LOCK_MS,
+    CLIPBOARD_CLEAR_MS,
+    filterEntries,
+    strength,
+    type Entry,
+    type VaultStatus
+  } from '$lib/password';
   import Button from './components/button.svelte';
   import Icon from './components/icon.svelte';
   import Input from './components/input.svelte';
@@ -11,10 +19,9 @@
   import SettingsModal from './components/settings-modal.svelte';
   import Toast from './components/toast.svelte';
 
-  // Kept out of reactive state: only used for saves, never rendered.
-  let masterPassword = '';
-
+  // The master password never lives in the frontend. Rust keeps the session key.
   let unlocked = $state(false);
+  let status: VaultStatus = $state({ exists: false, recoveryQuestion: null });
   let lockError = $state('');
   let entries: Entry[] = $state([]);
   let query = $state('');
@@ -28,6 +35,8 @@
   const weakCount = $derived(entries.filter((e) => strength(e.password).score < 2).length);
   const modalOpen = $derived(addOpen || settingsOpen || selected !== null);
 
+  onMount(refreshStatus);
+
   function greeting() {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -37,6 +46,14 @@
     toast = message;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toast = null), 2000);
+  }
+
+  async function refreshStatus() {
+    try {
+      status = await invoke<VaultStatus>('vault_status');
+    } catch (e) {
+      notify(String(e));
+    }
   }
 
   async function copy(text: string): Promise<boolean> {
@@ -60,71 +77,92 @@
     }
   }
 
-  async function persist(next: Entry[], password = masterPassword): Promise<boolean> {
+  async function unlock(password: string) {
     try {
-      await invoke('save_store', { store: next, password });
-      return true;
-    } catch {
-      notify('Could not save');
-      return false;
+      entries = await invoke<Entry[]>('unlock', { password });
+      lockError = '';
+      unlocked = true;
+      await refreshStatus();
+    } catch (e) {
+      lockError = String(e);
     }
   }
 
-  async function unlock(password: string) {
+  async function recover(answer: string, password: string) {
     try {
-      const res = await invoke<Entry[] | string>('get_store', { password });
-      if (typeof res === 'string') {
-        lockError = 'Wrong master password';
-        return;
-      }
-      masterPassword = password;
-      entries = res;
+      entries = await invoke<Entry[]>('recover', { answer, password });
       lockError = '';
       unlocked = true;
-    } catch {
-      lockError = 'Could not open vault';
+      notify('Master password reset');
+      await refreshStatus();
+    } catch (e) {
+      lockError = String(e);
     }
   }
 
   function lock() {
-    masterPassword = '';
     entries = [];
     query = '';
     selected = null;
     addOpen = false;
     settingsOpen = false;
     unlocked = false;
+    invoke('lock').finally(refreshStatus);
   }
 
   async function addEntry(entry: Entry) {
     const next = [...entries, entry];
-    if (!(await persist(next))) return;
-    entries = next;
-    addOpen = false;
-    notify('Saved');
+    try {
+      await invoke('save_store', { store: next });
+      entries = next;
+      addOpen = false;
+      notify('Saved');
+    } catch (e) {
+      notify(String(e));
+    }
   }
 
   async function removeEntry(id: number) {
     const next = entries.filter((e) => e.id !== id);
-    if (!(await persist(next))) return;
-    entries = next;
-    selected = null;
-    notify('Deleted');
+    try {
+      await invoke('save_store', { store: next });
+      entries = next;
+      selected = null;
+      notify('Deleted');
+    } catch (e) {
+      notify(String(e));
+    }
   }
 
   async function changeMasterPassword(password: string) {
-    if (!(await persist(entries, password))) return;
-    masterPassword = password;
-    settingsOpen = false;
-    notify('Master password updated');
+    try {
+      await invoke('change_master_password', { password });
+      settingsOpen = false;
+      notify('Master password updated');
+    } catch (e) {
+      notify(String(e));
+    }
+  }
+
+  async function setRecovery(question: string, answer: string): Promise<boolean> {
+    try {
+      await invoke('set_recovery', { question, answer });
+      notify('Recovery saved');
+      await refreshStatus();
+      return true;
+    } catch (e) {
+      notify(String(e));
+      return false;
+    }
   }
 
   async function deleteVault() {
     try {
       await invoke('delete_database');
       lock();
-    } catch {
-      notify('Could not delete');
+      notify('Vault deleted');
+    } catch (e) {
+      notify(String(e));
     }
   }
 
@@ -167,7 +205,13 @@
 <svelte:window onkeydown={onKeydown} />
 
 {#if !unlocked}
-  <LockScreen error={lockError} onunlock={unlock} />
+  <LockScreen
+    exists={status.exists}
+    question={status.recoveryQuestion}
+    error={lockError}
+    onunlock={unlock}
+    onrecover={recover}
+  />
 {:else}
   <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
     <div class="animate-drift absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent-2/15 blur-3xl"></div>
@@ -228,7 +272,13 @@
 {/if}
 
 {#if settingsOpen}
-  <SettingsModal onchangepassword={changeMasterPassword} ondelete={deleteVault} onclose={() => (settingsOpen = false)} />
+  <SettingsModal
+    recoveryQuestion={status.recoveryQuestion}
+    onchangepassword={changeMasterPassword}
+    onsetrecovery={setRecovery}
+    ondelete={deleteVault}
+    onclose={() => (settingsOpen = false)}
+  />
 {/if}
 
 {#if toast}
