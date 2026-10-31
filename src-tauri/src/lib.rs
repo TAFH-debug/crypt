@@ -24,6 +24,13 @@ pub fn run() {
             commands::set_recovery,
             commands::recover,
             commands::delete_database,
+            commands::list_files,
+            commands::add_file,
+            commands::save_file_copy,
+            commands::remove_file,
+            commands::link_file,
+            commands::export_vault,
+            commands::import_vault,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

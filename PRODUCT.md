@@ -32,8 +32,10 @@ Local only and open source. The vault never leaves the device. Encryption is AES
 - Create vault with a master password (min 8 chars); unlock; lock.
 - Recovery question: set/replace in settings; reset the master password from the lock screen with the answer.
 - Entries: site, username, password, notes, date added. Add, view, copy username/password, reveal, delete. No edit flow yet.
+- Files: store any file up to 100 MB, encrypted with the vault key as a separate blob. Optionally link a file to one login; it then shows on that login's card. Save a decrypted copy, relink, remove. Deleting a login keeps its files, unlinked.
 - Password generator (20 chars) and a 0–4 strength meter; weak-entry count on the vault header.
-- Settings: change master password, recovery question, delete vault (type DELETE to confirm).
+- Settings: change master password, recovery question, export backup, import backup, delete vault (type DELETE to confirm).
+- Export writes one encrypted `.cryptbak` file (logins + files, no recovery wrap) that opens with the master password current at export time. Import merges a backup or another device's `vault.json` into the unlocked vault and skips duplicates.
 - Legacy vault files migrate automatically on first unlock.
 - Stack: Svelte 5, SvelteKit (static adapter, SSR off), Tailwind CSS v4, Tauri 2. The master password never lives in the frontend; Rust keeps the session key.
 

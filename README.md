@@ -12,6 +12,8 @@
 
 * **AES-256-GCM** encryption with keys derived via **Argon2id**.
 * **Local only.** Your vault never leaves your device.
+* **Encrypted files.** Store any file up to 100 MB. Link it to a login to see it on that card.
+* **Encrypted backups.** Export logins and files into one `.cryptbak` file. Import merges a backup or another device's `vault.json` and skips duplicates.
 * **Recovery question.** Reset a forgotten master password without losing data.
 * **Password generator** with strength meter.
 * **Auto-lock** after 5 minutes of inactivity.
@@ -46,6 +48,10 @@ A random data key encrypts your entries. That key is stored wrapped twice:
 2. Optionally, by a key derived from your recovery answer.
 
 Changing the master password only rewraps the data key. Entries are not re-encrypted.
+
+Files are encrypted with the same data key. Each one is stored as a separate blob in `files/`. Their names, sizes and links to logins are encrypted inside `vault.json`.
+
+A backup holds the password-wrapped data key, your encrypted entries and the encrypted file blobs. It opens with the master password that was current at export time. The recovery question is left out. File count and sizes are visible in the backup header; names and contents are not.
 
 The vault lives in your app data folder:
 

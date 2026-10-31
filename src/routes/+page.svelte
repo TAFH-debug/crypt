@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { open, save } from '@tauri-apps/plugin-dialog';
   import {
     AUTO_LOCK_MS,
     CLIPBOARD_CLEAR_MS,
@@ -9,10 +10,13 @@
     filterEntries,
     strength,
     type Entry,
+    type ImportSummary,
+    type StoredFile,
     type VaultStatus
   } from '$lib/password';
   import Drawer from './components/drawer.svelte';
   import EntryCard from './components/entry-card.svelte';
+  import FilesCard from './components/files-card.svelte';
   import LockScreen from './components/lock-screen.svelte';
   import NewCard from './components/new-card.svelte';
   import OverviewCard from './components/overview-card.svelte';
@@ -20,7 +24,7 @@
   import SettingsCard from './components/settings-card.svelte';
   import type { StampState, Tone } from './components/stamp.svelte';
 
-  type Pane = 'entry' | 'new' | 'settings';
+  type Pane = 'entry' | 'new' | 'files' | 'settings';
   type Clip = { entryId: number; field: 'username' | 'password'; until: number };
 
   // The master password never lives in the frontend. Rust keeps the session key.
@@ -29,6 +33,7 @@
   let lockError = $state('');
   let lockNotice = $state('');
   let entries: Entry[] = $state([]);
+  let files: StoredFile[] = $state([]);
   let query = $state('');
   let selectedId = $state<number | null>(null);
   let pane = $state<Pane>('entry');
@@ -40,6 +45,7 @@
   const visible = $derived(filterEntries(entries, query));
   const weak = $derived(filterEntries(entries, '').filter((e) => strength(e.password).score < 2));
   const selected = $derived(entries.find((e) => e.id === selectedId) ?? null);
+  const selectedFiles = $derived(selected ? files.filter((f) => f.entryId === selected.id) : []);
   // The open card's guide tab sits where its letter's tab sits in the drawer.
   const tabPos = $derived.by(() => {
     if (!selected) return 0;
@@ -129,7 +135,7 @@
       lockError = '';
       lockNotice = '';
       unlocked = true;
-      await refreshStatus();
+      await Promise.all([refreshStatus(), loadFiles()]);
     } catch (e) {
       lockError = String(e);
     }
@@ -143,14 +149,23 @@
       lockNotice = '';
       unlocked = true;
       mark('Password reset');
-      await refreshStatus();
+      await Promise.all([refreshStatus(), loadFiles()]);
     } catch (e) {
       lockError = String(e);
     }
   }
 
+  async function loadFiles() {
+    try {
+      files = await invoke<StoredFile[]>('list_files');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
   function lock(notice = '') {
     entries = [];
+    files = [];
     query = '';
     clip = null;
     show('entry', null);
@@ -177,6 +192,8 @@
     try {
       await invoke('save_store', { store: next });
       entries = next;
+      // Rust unlinks the login's files; mirror it.
+      files = files.map((f) => (f.entryId === id ? { ...f, entryId: undefined } : f));
       if (clip?.entryId === id) clip = null;
       show('entry', null);
       mark('Removed');
@@ -205,6 +222,75 @@
     } catch (e) {
       fail(e);
       return false;
+    }
+  }
+
+  async function addFile(entryId: number | null = null) {
+    const path = await open({ title: 'Add a file to the vault', multiple: false, directory: false });
+    if (typeof path !== 'string') return;
+    try {
+      files = await invoke<StoredFile[]>('add_file', { path, entryId });
+      mark('Filed');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function saveFileCopy(file: StoredFile) {
+    const path = await save({ title: 'Save a decrypted copy', defaultPath: file.name });
+    if (!path) return;
+    try {
+      await invoke('save_file_copy', { id: file.id, path });
+      mark('Saved');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function linkFile(id: number, entryId: number | null) {
+    try {
+      files = await invoke<StoredFile[]>('link_file', { id, entryId });
+      mark(entryId === null ? 'Unlinked' : 'Linked');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function removeFile(id: number) {
+    try {
+      files = await invoke<StoredFile[]>('remove_file', { id });
+      mark('Removed');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function exportVault() {
+    const date = new Date().toISOString().slice(0, 10);
+    const path = await save({
+      title: 'Export an encrypted backup',
+      defaultPath: `crypt-backup-${date}.cryptbak`,
+      filters: [{ name: 'Crypt backup', extensions: ['cryptbak'] }]
+    });
+    if (!path) return;
+    try {
+      await invoke('export_vault', { path });
+      mark('Exported');
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  async function importVault(path: string, password: string): Promise<ImportSummary | null> {
+    try {
+      const summary = await invoke<ImportSummary>('import_vault', { path, password });
+      entries = summary.entries;
+      files = summary.files;
+      mark('Imported');
+      return summary;
+    } catch (e) {
+      fail(e);
+      return null;
     }
   }
 
@@ -279,7 +365,7 @@
   />
 {:else}
   <div class="grid h-screen grid-cols-[64px_minmax(300px,380px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-[56px_minmax(0,1fr)]">
-    <Rail {pane} onadd={() => show('new')} onsettings={() => show('settings')} onlock={() => lock()} />
+    <Rail {pane} onadd={() => show('new')} onfiles={() => show('files')} onsettings={() => show('settings')} onlock={() => lock()} />
 
     <Drawer
       entries={visible}
@@ -298,6 +384,18 @@
     >
       {#if pane === 'new'}
         <NewCard {error} onsave={addEntry} oncancel={() => show('entry')} />
+      {:else if pane === 'files'}
+        <FilesCard
+          {files}
+          {entries}
+          {stamp}
+          {error}
+          onadd={() => addFile()}
+          onsave={saveFileCopy}
+          onlink={linkFile}
+          onremove={removeFile}
+          onclose={() => show('entry')}
+        />
       {:else if pane === 'settings'}
         <SettingsCard
           recoveryQuestion={status.recoveryQuestion}
@@ -305,6 +403,8 @@
           {error}
           onchangepassword={changeMasterPassword}
           onsetrecovery={setRecovery}
+          onexport={exportVault}
+          onimport={importVault}
           ondelete={deleteVault}
           onclose={() => show('entry')}
         />
@@ -312,11 +412,14 @@
         {#key selected.id}
           <EntryCard
             entry={selected}
+            files={selectedFiles}
             stamp={cardStamp}
             stampNote={cardStampNote}
             {tabPos}
             {error}
             oncopy={(field) => copy(selected, field)}
+            onattach={() => addFile(selected.id)}
+            onsavefile={saveFileCopy}
             ondelete={removeEntry}
             onback={() => show('entry', null)}
           />

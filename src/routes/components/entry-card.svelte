@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fileLetter, formatDate, REVEAL_MS, type Entry } from '$lib/password';
+  import { fileLetter, formatBytes, formatDate, REVEAL_MS, type Entry, type StoredFile } from '$lib/password';
   import Button from './button.svelte';
   import CardShell from './card-shell.svelte';
   import CopyButton from './copy-button.svelte';
@@ -9,27 +9,41 @@
 
   let {
     entry,
+    files,
     stamp,
     stampNote,
     error,
     tabPos,
     oncopy,
+    onattach,
+    onsavefile,
     ondelete,
     onback
   }: {
     entry: Entry;
+    /** Files linked to this login. */
+    files: StoredFile[];
     /** Which third of the drawer this login's guide tab sits in. */
     tabPos: number;
     stamp: StampState | null;
     stampNote: string;
     error: string;
     oncopy: (field: 'username' | 'password') => Promise<boolean>;
+    onattach: () => Promise<void>;
+    onsavefile: (file: StoredFile) => Promise<void>;
     ondelete: (id: number) => Promise<void>;
     onback: () => void;
   } = $props();
 
   let showPassword = $state(false);
   let confirming = $state(false);
+  let attaching = $state(false);
+
+  async function attach() {
+    attaching = true;
+    await onattach();
+    attaching = false;
+  }
 
   // Revealed passwords hide themselves again after a short time.
   $effect(() => {
@@ -84,15 +98,45 @@
         <dd class="max-w-[60ch] text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.notes}</dd>
       </div>
     {/if}
+
+    {#if files.length > 0}
+      <div class="grid grid-cols-[112px_1fr] gap-3 border-b border-hair py-2 max-sm:grid-cols-1">
+        <dt class="pt-3 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase">Files</dt>
+        <dd class="min-w-0">
+          <ul>
+            {#each files as file (file.id)}
+              <li class="flex h-11 items-center gap-2">
+                <Icon name="file" class="size-4 shrink-0 text-muted" />
+                <span class="min-w-0 truncate text-sm font-semibold" title={file.name}>{file.name}</span>
+                <span class="mr-auto shrink-0 text-xs text-muted tabular-nums">{formatBytes(file.size)}</span>
+                <button
+                  type="button"
+                  title="Save a decrypted copy"
+                  aria-label={`Save a copy of ${file.name}`}
+                  onclick={() => onsavefile(file)}
+                  class="grid size-9 shrink-0 place-items-center rounded-lg text-muted transition-colors duration-150 hover:bg-select hover:text-active"
+                >
+                  <Icon name="download" class="size-[18px]" />
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </dd>
+      </div>
+    {/if}
   </dl>
 
   <div class="mt-6 flex min-h-10 flex-wrap items-center gap-3">
     {#if confirming}
-      <p class="mr-auto text-sm">Delete this login? It can't be undone.</p>
+      <p class="mr-auto text-sm">Delete this login? It can't be undone.{#if files.length > 0} Its files stay under Files.{/if}</p>
       <Button variant="ghost" onclick={() => (confirming = false)}>Keep it</Button>
       <Button variant="danger" onclick={() => ondelete(entry.id)}>Delete login</Button>
     {:else}
-      <Button variant="ghost" class="-ml-3" onclick={() => (confirming = true)}>Delete login</Button>
+      <Button variant="ghost" class="-ml-3" disabled={attaching} onclick={attach}>
+        <Icon name="paperclip" />
+        {attaching ? 'Encrypting…' : 'Attach file'}
+      </Button>
+      <Button variant="ghost" onclick={() => (confirming = true)}>Delete login</Button>
     {/if}
   </div>
 </CardShell>

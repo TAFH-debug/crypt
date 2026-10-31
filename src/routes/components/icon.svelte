@@ -18,7 +18,10 @@
     ],
     'arrow-left': ['M19 12H5M11 18l-6-6 6-6'],
     'arrow-up': ['M12 19V5M6 11l6-6 6 6'],
-    'arrow-down': ['M12 5v14M6 13l6 6 6-6']
+    'arrow-down': ['M12 5v14M6 13l6 6 6-6'],
+    file: ['M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z', 'M14 3v5h5'],
+    paperclip: ['M21.4 11.1l-9.2 9.1a6 6 0 01-8.5-8.5l9.2-9.1a4 4 0 015.7 5.6l-9.2 9.2a2 2 0 01-2.8-2.8l8.5-8.5'],
+    download: ['M12 4v11', 'M7 10l5 5 5-5', 'M5 20h14']
   };
 
   export type IconName = keyof typeof icons;

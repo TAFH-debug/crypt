@@ -5,11 +5,13 @@
   let {
     pane,
     onadd,
+    onfiles,
     onsettings,
     onlock
   }: {
-    pane: 'entry' | 'new' | 'settings';
+    pane: 'entry' | 'new' | 'files' | 'settings';
     onadd: () => void;
+    onfiles: () => void;
     onsettings: () => void;
     onlock: () => void;
   } = $props();
@@ -43,6 +45,8 @@
   >
     <Icon name="plus" class="size-5" />
   </button>
+
+  {@render railButton('file', 'Files', onfiles, pane === 'files')}
 
   <div class="flex-1"></div>
 

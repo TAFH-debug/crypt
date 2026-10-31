@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { MIN_PASSWORD_LENGTH } from '$lib/password';
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { baseName, MIN_PASSWORD_LENGTH, plural, type ImportSummary } from '$lib/password';
   import Button from './button.svelte';
   import CardShell from './card-shell.svelte';
+  import Icon from './icon.svelte';
   import Input from './input.svelte';
   import type { StampState } from './stamp.svelte';
 
@@ -11,6 +13,8 @@
     error,
     onchangepassword,
     onsetrecovery,
+    onexport,
+    onimport,
     ondelete,
     onclose
   }: {
@@ -19,6 +23,8 @@
     error: string;
     onchangepassword: (password: string) => Promise<boolean>;
     onsetrecovery: (question: string, answer: string) => Promise<boolean>;
+    onexport: () => Promise<void>;
+    onimport: (path: string, password: string) => Promise<ImportSummary | null>;
     ondelete: () => Promise<void>;
     onclose: () => void;
   } = $props();
@@ -28,6 +34,13 @@
 
   let question = $state('');
   let answer = $state('');
+
+  let exporting = $state(false);
+
+  let importPath = $state('');
+  let importPassword = $state('');
+  let importing = $state(false);
+  let importResult = $state('');
 
   let confirmText = $state('');
   const canDelete = $derived(confirmText === 'DELETE');
@@ -48,6 +61,42 @@
       question = '';
       answer = '';
     }
+  }
+
+  async function exportBackup() {
+    exporting = true;
+    await onexport();
+    exporting = false;
+  }
+
+  async function pickBackup() {
+    const path = await open({
+      title: 'Choose a Crypt backup',
+      multiple: false,
+      directory: false,
+      filters: [{ name: 'Crypt backup', extensions: ['cryptbak', 'json'] }]
+    });
+    if (typeof path !== 'string') return;
+    importPath = path;
+    importResult = '';
+  }
+
+  async function runImport(e: SubmitEvent) {
+    e.preventDefault();
+    if (!importPath || !importPassword) return;
+    importing = true;
+    const summary = await onimport(importPath, importPassword);
+    importing = false;
+    if (!summary) return;
+    importPath = '';
+    importPassword = '';
+    importResult = describe(summary);
+  }
+
+  function describe(s: ImportSummary): string {
+    const added = [s.addedEntries > 0 && plural(s.addedEntries, 'login'), s.addedFiles > 0 && plural(s.addedFiles, 'file')].filter(Boolean);
+    const head = added.length ? `Added ${added.join(' and ')}.` : 'Nothing new to add.';
+    return s.skipped > 0 ? `${head} Skipped ${s.skipped} already in this vault.` : head;
   }
 </script>
 
@@ -102,6 +151,49 @@
       <li>Keys come from your password through <span class="font-semibold text-ink">Argon2id</span>.</li>
       <li>The vault file never leaves this device. Crypt has no account and no sync.</li>
     </ul>
+  </section>
+
+  <section class="border-b border-hair py-6" aria-labelledby="set-export">
+    {@render heading('set-export', 'Export backup')}
+    <p class="mt-1 max-w-[52ch] text-sm text-muted">
+      Writes every login and file into one encrypted file. It opens with your current master password. The recovery question is left out.
+    </p>
+    <Button class="mt-4" disabled={exporting} onclick={exportBackup}>
+      <Icon name="download" />
+      {exporting ? 'Exporting…' : 'Export backup'}
+    </Button>
+  </section>
+
+  <section class="border-b border-hair py-6" aria-labelledby="set-import">
+    {@render heading('set-import', 'Import backup')}
+    <p class="mt-1 max-w-[52ch] text-sm text-muted">
+      Adds logins and files from a Crypt backup or another device's vault.json. Anything already in this vault is skipped.
+    </p>
+    <form onsubmit={runImport} class="mt-4 space-y-2">
+      <div class="flex min-w-0 items-center gap-3">
+        <Button onclick={pickBackup}>Choose file</Button>
+        <span class={`min-w-0 truncate text-sm ${importPath ? 'font-semibold text-ink' : 'text-muted'}`} title={importPath}>
+          {importPath ? baseName(importPath) : 'No file chosen'}
+        </span>
+      </div>
+      {#if importPath}
+        <div class="flex gap-2 max-sm:flex-col">
+          <Input
+            type="password"
+            typed
+            aria-label="Master password of the backup"
+            placeholder="Master password of the backup"
+            autocomplete="off"
+            required
+            bind:value={importPassword}
+          />
+          <Button type="submit" variant="primary" disabled={importing || !importPassword}>{importing ? 'Importing…' : 'Import'}</Button>
+        </div>
+      {/if}
+    </form>
+    {#if importResult}
+      <p role="status" class="mt-2 text-sm text-muted">{importResult}</p>
+    {/if}
   </section>
 
   <section class="pt-6" aria-labelledby="set-delete">

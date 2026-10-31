@@ -7,6 +7,25 @@ export interface Entry {
   date?: string;
 }
 
+/** A file stored in the vault. Contents stay in Rust; only metadata crosses over. */
+export interface StoredFile {
+  id: number;
+  name: string;
+  size: number;
+  sha256: string;
+  /** Unix milliseconds. */
+  added: number;
+  entryId?: number;
+}
+
+export interface ImportSummary {
+  entries: Entry[];
+  files: StoredFile[];
+  addedEntries: number;
+  addedFiles: number;
+  skipped: number;
+}
+
 export interface VaultStatus {
   exists: boolean;
   recoveryQuestion: string | null;
@@ -51,8 +70,29 @@ export function fileLetter(site: string): string {
   return ch >= 'A' && ch <= 'Z' ? ch : '#';
 }
 
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+export function formatDate(when: string | number): string {
+  return new Date(when).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`;
+}
+
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+/** Last path segment, for showing a picked file. */
+export function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path;
 }
 
 /** Drawer letters in the order their guide cards appear. Entries must be sorted. */

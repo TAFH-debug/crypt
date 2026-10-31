@@ -2,8 +2,8 @@
 //! Nothing here knows about vault files.
 
 use aes_gcm::{
-    aead::{rand_core::RngCore, Aead, AeadCore, KeyInit, OsRng, Payload},
-    Aes256Gcm, Key, Nonce,
+    aead::{rand_core::RngCore, Aead, AeadCore, AeadInPlace, KeyInit, OsRng, Payload},
+    Aes256Gcm, Key, Nonce, Tag,
 };
 use argon2::Argon2;
 use pbkdf2::pbkdf2_hmac;
@@ -40,10 +40,13 @@ pub fn derive_key(secret: &[u8], salt: &[u8]) -> Result<KeyBytes, CryptoError> {
     Ok(out)
 }
 
+fn cipher(key: &KeyBytes) -> Aes256Gcm {
+    Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
+}
+
 pub fn seal(key: &KeyBytes, aad: &[u8], plain: &[u8]) -> Result<Sealed, CryptoError> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
     let nonce = Aes256Gcm::generate_nonce(OsRng);
-    let ct = cipher
+    let ct = cipher(key)
         .encrypt(&nonce, Payload { msg: plain, aad })
         .map_err(|_| CryptoError)?;
     Ok(Sealed {
@@ -57,10 +60,36 @@ pub fn open(key: &KeyBytes, aad: &[u8], sealed: &Sealed) -> Result<Vec<u8>, Cryp
         .filter(|n| n.len() == NONCE_LEN)
         .ok_or(CryptoError)?;
     let ct = from_hex(&sealed.ct).ok_or(CryptoError)?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    cipher
+    cipher(key)
         .decrypt(Nonce::from_slice(&nonce), Payload { msg: &ct, aad })
         .map_err(|_| CryptoError)
+}
+
+/// Binary form for large payloads: `nonce || ciphertext || tag`. Encrypts in place.
+pub fn seal_raw(key: &KeyBytes, aad: &[u8], plain: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    let nonce = Aes256Gcm::generate_nonce(OsRng);
+    let mut out = Vec::with_capacity(NONCE_LEN + plain.len() + TAG_LEN);
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(plain);
+    let tag = cipher(key)
+        .encrypt_in_place_detached(&nonce, aad, &mut out[NONCE_LEN..])
+        .map_err(|_| CryptoError)?;
+    out.extend_from_slice(&tag);
+    Ok(out)
+}
+
+/// Opens a `seal_raw` blob. Decrypts in place, so it takes the buffer.
+pub fn open_raw(key: &KeyBytes, aad: &[u8], mut blob: Vec<u8>) -> Result<Vec<u8>, CryptoError> {
+    if blob.len() < NONCE_LEN + TAG_LEN {
+        return Err(CryptoError);
+    }
+    let tag = blob.split_off(blob.len() - TAG_LEN);
+    let (nonce, body) = blob.split_at_mut(NONCE_LEN);
+    cipher(key)
+        .decrypt_in_place_detached(Nonce::from_slice(nonce), aad, body, Tag::from_slice(&tag))
+        .map_err(|_| CryptoError)?;
+    blob.drain(..NONCE_LEN);
+    Ok(blob)
 }
 
 /// Format v1 (the original app): `ciphertext || nonce`, key = PBKDF2(password, "salt", 10k).
@@ -72,8 +101,7 @@ pub fn legacy_open(password: &str, blob: &[u8]) -> Result<Vec<u8>, CryptoError> 
     let mut key = [0u8; 32];
     pbkdf2_hmac::<Sha256>(password.as_bytes(), b"salt", 10_000, &mut key);
     let (ct, nonce) = blob.split_at(blob.len() - NONCE_LEN);
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
-    cipher
+    cipher(&key)
         .decrypt(Nonce::from_slice(nonce), ct)
         .map_err(|_| CryptoError)
 }
