@@ -13,7 +13,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource/courier-prime": "^5.3.0",
     "@tailwindcss/vite": "^4.0.14",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.2.0",

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 60 392 392" width="512" height="512">
+  <title>Crypt</title>
+  <defs>
+    <linearGradient id="brand" gradientUnits="userSpaceOnUse" x1="104" y1="76" x2="408" y2="436">
+      <stop offset="0" stop-color="#a478ff"/>
+      <stop offset="1" stop-color="#e867c3"/>
+    </linearGradient>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <path d="M146 416 L146 226 A110.0 110.0 0 0 1 366 226 L366 416 Z" fill="#fff"/>
+      <path d="M178 416 L178 226 A78.0 78.0 0 0 1 334 226 L334 416 Z" fill="#000"/>
+      <path d="M192 416 L192 226 A64.0 64.0 0 0 1 320 226 L320 416 Z" fill="#fff"/>
+      <circle cx="256" cy="262" r="30" fill="#000"/>
+      <path d="M244 280 L268 280 L280 352 Q256 362 232 352 Z" fill="#000"/>
+    </mask>
+    <clipPath id="L"><rect x="0" y="0" width="249" height="512"/></clipPath>
+    <clipPath id="R"><rect x="263" y="0" width="249" height="512"/></clipPath>
+    <mask id="mark" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <g fill="#fff" transform="translate(0 -18)">
+        <g clip-path="url(#L)" transform="translate(0 14)"><rect width="512" height="512" mask="url(#cut)"/></g>
+        <g clip-path="url(#R)" transform="translate(0 -22)"><rect width="512" height="512" mask="url(#cut)"/></g>
+        <rect x="104" y="440" width="140" height="14" rx="7"/>
+        <rect x="268" y="440" width="140" height="14" rx="7"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="#f5f1ff" mask="url(#mark)"/>
+</svg>

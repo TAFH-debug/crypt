@@ -44,9 +44,23 @@ export function strength(password: string): { score: number; label: string } {
   return { score, label: labels[score] };
 }
 
-/** Stable hue per site so each entry keeps the same color. */
-export function hueFor(text: string): number {
-  let hash = 0;
-  for (const ch of text) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
-  return hash;
+
+/** Drawer letter a site is filed under: A–Z, or # for anything else. */
+export function fileLetter(site: string): string {
+  const ch = site.trim().charAt(0).toUpperCase();
+  return ch >= 'A' && ch <= 'Z' ? ch : '#';
+}
+
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Drawer letters in the order their guide cards appear. Entries must be sorted. */
+export function fileLetters(entries: Entry[]): string[] {
+  const out: string[] = [];
+  for (const e of entries) {
+    const letter = fileLetter(e.site);
+    if (out.at(-1) !== letter) out.push(letter);
+  }
+  return out;
 }

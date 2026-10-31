@@ -3,13 +3,22 @@
 
   let {
     value = $bindable(''),
+    ref = $bindable(),
+    typed = false,
     class: className = '',
     ...rest
-  }: Omit<HTMLInputAttributes, 'value'> & { value?: string; class?: string } = $props();
+  }: Omit<HTMLInputAttributes, 'value'> & {
+    value?: string;
+    ref?: HTMLInputElement;
+    /** Credential data is typed onto the card in the typewriter face. */
+    typed?: boolean;
+    class?: string;
+  } = $props();
 </script>
 
 <input
   {...rest}
+  bind:this={ref}
   bind:value
-  class={`w-full rounded-xl bg-white px-3.5 py-2.5 text-sm text-zinc-900 ring-1 ring-zinc-200 transition outline-none placeholder:text-zinc-400 focus:ring-2 focus:ring-accent-1/60 dark:bg-zinc-900 dark:text-zinc-100 dark:ring-zinc-700 ${className}`}
+  class={`h-10 w-full rounded-lg border border-line bg-card px-3 text-ink transition-colors duration-150 outline-none placeholder:text-muted hover:border-active/50 focus:border-active focus:ring-3 focus:ring-active/20 ${typed ? 'font-type text-[15px]' : 'text-sm'} ${className}`}
 />

@@ -4,68 +4,102 @@
   import {
     AUTO_LOCK_MS,
     CLIPBOARD_CLEAR_MS,
+    fileLetter,
+    fileLetters,
     filterEntries,
     strength,
     type Entry,
     type VaultStatus
   } from '$lib/password';
-  import Button from './components/button.svelte';
-  import Icon from './components/icon.svelte';
-  import Input from './components/input.svelte';
+  import Drawer from './components/drawer.svelte';
+  import EntryCard from './components/entry-card.svelte';
   import LockScreen from './components/lock-screen.svelte';
-  import PasswordList from './components/password-list.svelte';
-  import AddPasswordModal from './components/add-password-modal.svelte';
-  import ViewPasswordModal from './components/view-password-modal.svelte';
-  import SettingsModal from './components/settings-modal.svelte';
-  import Toast from './components/toast.svelte';
+  import NewCard from './components/new-card.svelte';
+  import OverviewCard from './components/overview-card.svelte';
+  import Rail from './components/rail.svelte';
+  import SettingsCard from './components/settings-card.svelte';
+  import type { StampState, Tone } from './components/stamp.svelte';
+
+  type Pane = 'entry' | 'new' | 'settings';
+  type Clip = { entryId: number; field: 'username' | 'password'; until: number };
 
   // The master password never lives in the frontend. Rust keeps the session key.
   let unlocked = $state(false);
   let status: VaultStatus = $state({ exists: false, recoveryQuestion: null });
   let lockError = $state('');
+  let lockNotice = $state('');
   let entries: Entry[] = $state([]);
   let query = $state('');
-  let selected: Entry | null = $state(null);
-  let addOpen = $state(false);
-  let settingsOpen = $state(false);
-  let toast: string | null = $state(null);
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  let selectedId = $state<number | null>(null);
+  let pane = $state<Pane>('entry');
+  let stamp = $state<StampState | null>(null);
+  let error = $state('');
+  let clip = $state<Clip | null>(null);
+  let now = $state(Date.now());
 
   const visible = $derived(filterEntries(entries, query));
-  const weakCount = $derived(entries.filter((e) => strength(e.password).score < 2).length);
-  const modalOpen = $derived(addOpen || settingsOpen || selected !== null);
+  const weak = $derived(filterEntries(entries, '').filter((e) => strength(e.password).score < 2));
+  const selected = $derived(entries.find((e) => e.id === selectedId) ?? null);
+  // The open card's guide tab sits where its letter's tab sits in the drawer.
+  const tabPos = $derived.by(() => {
+    if (!selected) return 0;
+    const letter = fileLetter(selected.site);
+    const shown = fileLetters(visible);
+    const order = shown.includes(letter) ? shown : fileLetters(filterEntries(entries, ''));
+    return Math.max(0, order.indexOf(letter)) % 3;
+  });
+  // On narrow windows the pane covers the drawer only while it has something to show.
+  const paneActive = $derived(pane !== 'entry' || selected !== null);
+
+  const clipSeconds = $derived(clip ? Math.max(0, Math.ceil((clip.until - now) / 1000)) : 0);
+  const cardStamp = $derived<StampState | null>(
+    clip && pane === 'entry' && clip.entryId === selectedId
+      ? { id: clip.until, text: `Copied ${clip.field}`, tone: 'ink' }
+      : stamp
+  );
+  const cardStampNote = $derived(clip && cardStamp?.id === clip.until ? `clipboard clears in ${clipSeconds}s` : '');
 
   onMount(refreshStatus);
 
-  function greeting() {
-    const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  function mark(text: string, tone: Tone = 'ink') {
+    error = '';
+    stamp = { id: Date.now(), text, tone };
   }
 
-  function notify(message: string) {
-    toast = message;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (toast = null), 2000);
+  function fail(e: unknown) {
+    stamp = null;
+    error = String(e);
+  }
+
+  function show(next: Pane, id: number | null = selectedId) {
+    pane = next;
+    selectedId = id;
+    stamp = null;
+    error = '';
   }
 
   async function refreshStatus() {
     try {
       status = await invoke<VaultStatus>('vault_status');
     } catch (e) {
-      notify(String(e));
+      lockError = String(e);
     }
   }
 
-  async function copy(text: string): Promise<boolean> {
+  async function copy(entry: Entry, field: 'username' | 'password'): Promise<boolean> {
+    const text = field === 'password' ? entry.password : entry.username;
     try {
       await navigator.clipboard.writeText(text);
-      notify('Copied · clears in 30s');
-      setTimeout(clearClipboardIf, CLIPBOARD_CLEAR_MS, text);
-      return true;
     } catch {
-      notify('Copy failed');
+      if (selectedId !== entry.id) show('entry', entry.id);
+      fail('Could not reach the clipboard. Try again.');
       return false;
     }
+    if (pane !== 'entry' || selectedId !== entry.id) show('entry', entry.id);
+    clip = { entryId: entry.id, field, until: Date.now() + CLIPBOARD_CLEAR_MS };
+    now = Date.now();
+    setTimeout(clearClipboardIf, CLIPBOARD_CLEAR_MS, text);
+    return true;
   }
 
   // Only wipes the clipboard if it still holds what we copied.
@@ -77,10 +111,23 @@
     }
   }
 
+  // Tick the clipboard countdown while a copy is live.
+  $effect(() => {
+    if (!clip) return;
+    const until = clip.until;
+    const timer = setInterval(() => {
+      now = Date.now();
+      if (now >= until) clip = null;
+    }, 1000);
+    return () => clearInterval(timer);
+  });
+
   async function unlock(password: string) {
+    lockError = '';
     try {
       entries = await invoke<Entry[]>('unlock', { password });
       lockError = '';
+      lockNotice = '';
       unlocked = true;
       await refreshStatus();
     } catch (e) {
@@ -89,23 +136,25 @@
   }
 
   async function recover(answer: string, password: string) {
+    lockError = '';
     try {
       entries = await invoke<Entry[]>('recover', { answer, password });
       lockError = '';
+      lockNotice = '';
       unlocked = true;
-      notify('Master password reset');
+      mark('Password reset');
       await refreshStatus();
     } catch (e) {
       lockError = String(e);
     }
   }
 
-  function lock() {
+  function lock(notice = '') {
     entries = [];
     query = '';
-    selected = null;
-    addOpen = false;
-    settingsOpen = false;
+    clip = null;
+    show('entry', null);
+    lockNotice = notice;
     unlocked = false;
     invoke('lock').finally(refreshStatus);
   }
@@ -115,10 +164,11 @@
     try {
       await invoke('save_store', { store: next });
       entries = next;
-      addOpen = false;
-      notify('Saved');
+      query = '';
+      show('entry', entry.id);
+      mark('Filed');
     } catch (e) {
-      notify(String(e));
+      fail(e);
     }
   }
 
@@ -127,31 +177,33 @@
     try {
       await invoke('save_store', { store: next });
       entries = next;
-      selected = null;
-      notify('Deleted');
+      if (clip?.entryId === id) clip = null;
+      show('entry', null);
+      mark('Removed');
     } catch (e) {
-      notify(String(e));
+      fail(e);
     }
   }
 
-  async function changeMasterPassword(password: string) {
+  async function changeMasterPassword(password: string): Promise<boolean> {
     try {
       await invoke('change_master_password', { password });
-      settingsOpen = false;
-      notify('Master password updated');
+      mark('Updated');
+      return true;
     } catch (e) {
-      notify(String(e));
+      fail(e);
+      return false;
     }
   }
 
   async function setRecovery(question: string, answer: string): Promise<boolean> {
     try {
       await invoke('set_recovery', { question, answer });
-      notify('Recovery saved');
+      mark('Saved');
       await refreshStatus();
       return true;
     } catch (e) {
-      notify(String(e));
+      fail(e);
       return false;
     }
   }
@@ -159,24 +211,31 @@
   async function deleteVault() {
     try {
       await invoke('delete_database');
-      lock();
-      notify('Vault deleted');
+      lock('Deleted');
     } catch (e) {
-      notify(String(e));
+      fail(e);
     }
+  }
+
+  function move(delta: number) {
+    if (visible.length === 0) return;
+    const at = visible.findIndex((e) => e.id === selectedId);
+    const next = at === -1 ? (delta > 0 ? 0 : visible.length - 1) : Math.min(visible.length - 1, Math.max(0, at + delta));
+    show('entry', visible[next].id);
+  }
+
+  function copySelected() {
+    const entry = visible.find((e) => e.id === selectedId) ?? (visible.length === 1 ? visible[0] : null);
+    if (entry) copy(entry, 'password');
   }
 
   // Lock after a period without input.
   $effect(() => {
     if (!unlocked) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const autoLock = () => {
-      lock();
-      notify('Locked after inactivity');
-    };
     const reset = () => {
       clearTimeout(timer);
-      timer = setTimeout(autoLock, AUTO_LOCK_MS);
+      timer = setTimeout(() => lock('Auto-locked'), AUTO_LOCK_MS);
     };
     const events = ['pointerdown', 'keydown'] as const;
     events.forEach((ev) => window.addEventListener(ev, reset));
@@ -191,11 +250,16 @@
     if (!unlocked) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
       e.preventDefault();
-      addOpen = true;
+      show('new');
+      return;
+    }
+    if (e.key === 'Escape' && !e.defaultPrevented) {
+      if (pane !== 'entry') show('entry');
+      else if (selectedId !== null) show('entry', null);
       return;
     }
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-    if (e.key === '/' && !typing && !modalOpen) {
+    if (e.key === '/' && !typing) {
       e.preventDefault();
       document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
     }
@@ -209,78 +273,64 @@
     exists={status.exists}
     question={status.recoveryQuestion}
     error={lockError}
+    notice={lockNotice}
     onunlock={unlock}
     onrecover={recover}
   />
 {:else}
-  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-    <div class="animate-drift absolute -top-32 -right-24 h-96 w-96 rounded-full bg-accent-2/15 blur-3xl"></div>
-    <div class="animate-drift absolute bottom-0 -left-24 h-80 w-80 rounded-full bg-accent-1/15 blur-3xl [animation-delay:-7s]"></div>
-  </div>
+  <div class="grid h-screen grid-cols-[64px_minmax(300px,380px)_minmax(0,1fr)] overflow-hidden max-[760px]:grid-cols-[56px_minmax(0,1fr)]">
+    <Rail {pane} onadd={() => show('new')} onsettings={() => show('settings')} onlock={() => lock()} />
 
-  <main class="mx-auto max-w-2xl px-5 py-10">
-    <header class="mb-8 flex items-start justify-between">
-      <div>
-        <p class="text-xs font-semibold tracking-wide text-zinc-400 uppercase">{greeting()}</p>
-        <h1 class="text-3xl font-extrabold tracking-tight">Your vault</h1>
-        {#if entries.length > 0}
-          <p class="mt-2 flex items-center gap-2 text-sm text-zinc-500">
-            <span>{entries.length} saved</span>
-            {#if weakCount > 0}
-              <span class="rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-500">{weakCount} weak</span>
-            {/if}
-          </p>
-        {/if}
-      </div>
-      <div class="flex gap-1">
-        <Button variant="ghost" class="p-2" title="Lock" aria-label="Lock" onclick={lock}>
-          <Icon name="lock" />
-        </Button>
-        <Button variant="ghost" class="p-2" title="Settings" aria-label="Settings" onclick={() => (settingsOpen = true)}>
-          <Icon name="settings" />
-        </Button>
-      </div>
-    </header>
-
-    <div class="mb-6 flex gap-2">
-      <div class="relative flex-1">
-        <Icon name="search" class="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-        <Input type="search" placeholder="Search  ·  press /" aria-label="Search passwords" class="pl-10" bind:value={query} />
-      </div>
-      <Button variant="primary" title="New password (Ctrl+N)" onclick={() => (addOpen = true)}>
-        <Icon name="plus" />
-        Add
-      </Button>
-    </div>
-
-    <PasswordList
+    <Drawer
       entries={visible}
-      hasQuery={query.trim() !== ''}
-      onopen={(entry) => (selected = entry)}
-      oncopy={copy}
-      onadd={() => (addOpen = true)}
+      total={entries.length}
+      weakCount={weak.length}
+      bind:query
+      selectedId={pane === 'entry' ? selectedId : null}
+      onselect={(entry) => show('entry', entry.id)}
+      oncopy={(entry) => copy(entry, 'password')}
+      onmove={move}
+      oncopyselected={copySelected}
     />
-  </main>
-{/if}
 
-{#if addOpen}
-  <AddPasswordModal onsave={addEntry} onclose={() => (addOpen = false)} />
-{/if}
-
-{#if selected}
-  <ViewPasswordModal entry={selected} oncopy={copy} ondelete={removeEntry} onclose={() => (selected = null)} />
-{/if}
-
-{#if settingsOpen}
-  <SettingsModal
-    recoveryQuestion={status.recoveryQuestion}
-    onchangepassword={changeMasterPassword}
-    onsetrecovery={setRecovery}
-    ondelete={deleteVault}
-    onclose={() => (settingsOpen = false)}
-  />
-{/if}
-
-{#if toast}
-  <Toast message={toast} />
+    <main
+      class={`min-h-0 overflow-y-auto bg-ground px-8 py-7 max-sm:px-3 max-sm:py-3 max-[760px]:fixed max-[760px]:inset-y-0 max-[760px]:right-0 max-[760px]:left-14 max-[760px]:z-20 ${paneActive ? '' : 'max-[760px]:hidden'}`}
+    >
+      {#if pane === 'new'}
+        <NewCard {error} onsave={addEntry} oncancel={() => show('entry')} />
+      {:else if pane === 'settings'}
+        <SettingsCard
+          recoveryQuestion={status.recoveryQuestion}
+          {stamp}
+          {error}
+          onchangepassword={changeMasterPassword}
+          onsetrecovery={setRecovery}
+          ondelete={deleteVault}
+          onclose={() => show('entry')}
+        />
+      {:else if selected}
+        {#key selected.id}
+          <EntryCard
+            entry={selected}
+            stamp={cardStamp}
+            stampNote={cardStampNote}
+            {tabPos}
+            {error}
+            oncopy={(field) => copy(selected, field)}
+            ondelete={removeEntry}
+            onback={() => show('entry', null)}
+          />
+        {/key}
+      {:else}
+        <OverviewCard
+          total={entries.length}
+          {weak}
+          {stamp}
+          {error}
+          onadd={() => show('new')}
+          onopen={(entry) => show('entry', entry.id)}
+        />
+      {/if}
+    </main>
+  </div>
 {/if}
