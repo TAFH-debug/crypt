@@ -36,7 +36,7 @@
 
 ### Settings
 
-<img src="img/image.png" />
+<img src="img/image1.png" />
 
 ## How it works
 

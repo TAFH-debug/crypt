@@ -26,14 +26,8 @@
 </script>
 
 <CardShell title={empty ? 'An empty drawer' : `${total} ${total === 1 ? 'login' : 'logins'} filed`} {stamp} {error}>
-  {#snippet sub()}
-    {empty ? 'Nothing filed yet.' : 'Open a card from the drawer, or search for one.'}
-  {/snippet}
 
   {#if empty}
-    <p class="mt-5 max-w-[48ch] text-sm leading-relaxed">
-      Add your first login. It is encrypted with AES-256-GCM and saved only on this device.
-    </p>
     <Button variant="primary" class="mt-5" onclick={onadd}>
       <Icon name="plus" />
       Add a login
@@ -43,7 +37,6 @@
       <h2 id="weak-heading" class="text-base font-bold">
         {weak.length} weak {weak.length === 1 ? 'password' : 'passwords'}
       </h2>
-      <p class="mt-1 text-sm text-muted">Short or simple. Replace these when you next sign in.</p>
       <ul class="mt-3 border-t border-hair">
         {#each weak.slice(0, 5) as entry (entry.id)}
           <li class="border-b border-hair">

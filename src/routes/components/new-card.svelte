@@ -51,7 +51,6 @@
 {/snippet}
 
 <CardShell title="New login" {error} onback={oncancel}>
-  {#snippet sub()}Encrypted and saved only on this device.{/snippet}
 
   <form onsubmit={submit} class="mt-4 space-y-5">
     <div class="space-y-1.5">
