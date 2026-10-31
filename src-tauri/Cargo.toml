@@ -1,6 +1,6 @@
 [package]
 name = "crypt"
-version = "0.1.3"
+version = "0.1.4"
 description = "Crypt is a password manager app for your passwords with Aes256Gcm encryption."
 authors = ["TAFH-debug"]
 edition = "2021"
